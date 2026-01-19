@@ -2,6 +2,7 @@ import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import * as net from "net";
 
 const HAE_HOST = process.env.HAE_HOST || "localhost";
 const HAE_PORT = parseInt(process.env.HAE_PORT || "9000");
@@ -16,369 +17,20 @@ const server = new McpServer({
   },
 });
 
-// Health Metrics
-server.tool(
-  "Get Health Metrics",
-  "Get health metrics data for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: health_metrics"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g., '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g., '2025-08-31 23:59:59 +0200')"),
-            metrics: z
-              .string()
-              .describe(
-                "Metrics to export as a comma separated list, or empty string for all metrics (e.g., 'step_count')"
-              ),
-            interval: z
-              .string()
-              .describe("Aggregation interval for metrics (e.g., 'days')"),
-            aggregate: z.boolean().describe("Aggregate metrics (e.g. true)"),
-          })
-          .describe("Arguments for the health_metrics tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-// Workouts
-server.tool(
-  "Get Workouts",
-  "Get workouts for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: workouts"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g. '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g. '2025-08-31 23:59:59 +0200')"),
-            includeMetadata: z
-              .boolean()
-              .describe("Include health metric metadata (e.g. true)"),
-            includeRoutes: z
-              .boolean()
-              .describe("Include route data (e.g. true)"),
-            metadataAggregation: z
-              .string()
-              .describe(
-                "Aggregation interval for health metric metadata (e.g. 'minutes' or 'seconds')"
-              ),
-          })
-          .describe("Arguments for the workouts tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-// Symptoms
-server.tool(
-  "Get Symptoms",
-  "Get symptoms data for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: symptoms"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g. '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g. '2025-08-31 23:59:59 +0200')"),
-          })
-          .describe("Arguments for the symptoms tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-// State of Mind
-server.tool(
-  "Get State of Mind",
-  "Get state of mind data for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: state_of_mind"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g. '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g. '2025-08-31 23:59:59 +0200')"),
-          })
-          .describe("Arguments for the state_of_mind tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-// Medications
-server.tool(
-  "Get Medications",
-  "Get medications data for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: medications"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g. '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g. '2025-08-31 23:59:59 +0200')"),
-          })
-          .describe("Arguments for the medications tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-// Cycle Tracking
-server.tool(
-  "Get Cycle Tracking",
-  "Get cycle tracking data for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: cycle_tracking"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g. '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g. '2025-08-31 23:59:59 +0200')"),
-          })
-          .describe("Arguments for the cycle_tracking tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-// ECG
-server.tool(
-  "Get ECG",
-  "Get ecg data for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: ecg"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g. '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g. '2025-08-31 23:59:59 +0200')"),
-          })
-          .describe("Arguments for the ecg tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-// Heart Notifications
-server.tool(
-  "Get Heart Notifications",
-  "Get heart notifications data for a specified date range",
-  {
-    host: z.string().describe("Hostname or IP address of the target server"),
-    port: z.number().min(1).max(65535).describe("Port number to connect to"),
-    method: z.string().describe("JSON-RPC method name"),
-    params: z
-      .object({
-        name: z.string().describe("Tool name to call: heart_notifications"),
-        arguments: z
-          .object({
-            start: z
-              .string()
-              .describe("Start timestamp (e.g. '2025-08-01 00:00:00 +0200')"),
-            end: z
-              .string()
-              .describe("End timestamp (e.g. '2025-08-31 23:59:59 +0200')"),
-          })
-          .describe("Arguments for the heart_notifications tool call"),
-      })
-      .describe("JSON-RPC parameters with name and arguments"),
-    id: z
-      .union([z.string(), z.number()])
-      .optional()
-      .describe("JSON-RPC request ID (default: auto-generated)"),
-    timeout: z
-      .number()
-      .min(1000)
-      .max(DEFAULT_TIMEOUT)
-      .optional()
-      .describe(
-        `Connection timeout in milliseconds (default: ${DEFAULT_TIMEOUT})`
-      ),
-  },
-  handleRequest
-);
-
-interface HealthMetricsArgs {
-  start: string;
-  end: string;
-}
-
-async function handleRequest({
-  host,
-  port,
-  method,
-  params,
-  id,
-  timeout = DEFAULT_TIMEOUT,
-}: {
-  host: string;
-  port: number;
-  method: string;
-  params: {
-    name: string;
-    arguments: HealthMetricsArgs;
-  };
-  id?: string | number | undefined;
-  timeout?: number | undefined;
-}): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  const net = await import("net");
-
-  const requestId = id || Math.floor(Math.random() * 1000);
+// Helper function to send JSON-RPC request to Health Auto Export iOS app
+async function sendRequest(
+  toolName: string,
+  args: Record<string, unknown>
+): Promise<{ content: Array<{ type: "text"; text: string }> }> {
+  const requestId = Math.floor(Math.random() * 1000);
   const jsonrpcRequest = {
     jsonrpc: "2.0",
     id: requestId,
-    method: method,
-    params: params || {},
+    method: "callTool",
+    params: {
+      name: toolName,
+      arguments: args,
+    },
   };
 
   const message = JSON.stringify(jsonrpcRequest);
@@ -388,9 +40,9 @@ async function handleRequest({
     let responseData = "";
     let hasResponded = false;
 
-    client.setTimeout(timeout);
+    client.setTimeout(DEFAULT_TIMEOUT);
 
-    client.connect(port, host, () => {
+    client.connect(HAE_PORT, HAE_HOST, () => {
       client.write(message);
     });
 
@@ -401,27 +53,24 @@ async function handleRequest({
     client.on("end", () => {
       if (!hasResponded) {
         hasResponded = true;
-        let responseText = `JSON-RPC request to ${host}:${port} completed successfully.\n`;
-        responseText += `Request: ${message}\n\n`;
-
         if (responseData) {
           try {
             const parsedResponse = JSON.parse(responseData);
-            responseText += `Response: ${JSON.stringify(
-              parsedResponse,
-              null,
-              2
-            )}`;
+            resolve({
+              content: [
+                { type: "text", text: JSON.stringify(parsedResponse, null, 2) },
+              ],
+            });
           } catch {
-            responseText += `Raw Response: ${responseData}`;
+            resolve({
+              content: [{ type: "text", text: responseData }],
+            });
           }
         } else {
-          responseText += "No response data received";
+          resolve({
+            content: [{ type: "text", text: "No response data received" }],
+          });
         }
-
-        resolve({
-          content: [{ type: "text", text: responseText }],
-        });
       }
     });
 
@@ -432,7 +81,7 @@ async function handleRequest({
           content: [
             {
               type: "text",
-              text: `JSON-RPC request to ${host}:${port} failed: ${error.message}`,
+              text: `Failed to connect to Health Auto Export at ${HAE_HOST}:${HAE_PORT}: ${error.message}`,
             },
           ],
         });
@@ -447,7 +96,7 @@ async function handleRequest({
           content: [
             {
               type: "text",
-              text: `JSON-RPC request to ${host}:${port} timed out after ${timeout}ms`,
+              text: `Request to Health Auto Export timed out after ${DEFAULT_TIMEOUT}ms`,
             },
           ],
         });
@@ -461,7 +110,7 @@ async function handleRequest({
           content: [
             {
               type: "text",
-              text: `JSON-RPC request to ${host}:${port} closed`,
+              text: `Connection to Health Auto Export closed unexpectedly`,
             },
           ],
         });
@@ -470,13 +119,185 @@ async function handleRequest({
   });
 }
 
+// Health Metrics
+server.tool(
+  "get_health_metrics",
+  "Get health metrics data (heart rate, steps, sleep, blood glucose, etc.) for a specified date range from Apple Health",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+    metrics: z
+      .string()
+      .optional()
+      .describe(
+        "Metrics to export as comma-separated list (e.g., 'heart_rate,step_count'). Leave empty for all metrics."
+      ),
+    interval: z
+      .string()
+      .optional()
+      .describe("Aggregation interval: 'minutes', 'hours', or 'days' (default: 'hours')"),
+    aggregate: z
+      .boolean()
+      .optional()
+      .describe("Whether to aggregate metrics (default: true)"),
+  },
+  async ({ start, end, metrics, interval, aggregate }) => {
+    return sendRequest("health_metrics", {
+      start,
+      end,
+      metrics: metrics || "",
+      interval: interval || "hours",
+      aggregate: aggregate ?? true,
+    });
+  }
+);
+
+// Workouts
+server.tool(
+  "get_workouts",
+  "Get workout data (exercise sessions) for a specified date range from Apple Health",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+    includeMetadata: z
+      .boolean()
+      .optional()
+      .describe("Include health metric metadata (default: true)"),
+    includeRoutes: z
+      .boolean()
+      .optional()
+      .describe("Include GPS route data (default: false)"),
+    metadataAggregation: z
+      .string()
+      .optional()
+      .describe("Aggregation interval for metadata: 'seconds' or 'minutes' (default: 'minutes')"),
+  },
+  async ({ start, end, includeMetadata, includeRoutes, metadataAggregation }) => {
+    return sendRequest("workouts", {
+      start,
+      end,
+      includeMetadata: includeMetadata ?? true,
+      includeRoutes: includeRoutes ?? false,
+      metadataAggregation: metadataAggregation || "minutes",
+    });
+  }
+);
+
+// Symptoms
+server.tool(
+  "get_symptoms",
+  "Get symptoms data for a specified date range from Apple Health",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+  },
+  async ({ start, end }) => {
+    return sendRequest("symptoms", { start, end });
+  }
+);
+
+// State of Mind
+server.tool(
+  "get_state_of_mind",
+  "Get state of mind (mood/emotion) data for a specified date range from Apple Health (iOS 18+)",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+  },
+  async ({ start, end }) => {
+    return sendRequest("state_of_mind", { start, end });
+  }
+);
+
+// Medications
+server.tool(
+  "get_medications",
+  "Get medications data for a specified date range from Apple Health (iOS 26+)",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+  },
+  async ({ start, end }) => {
+    return sendRequest("medications", { start, end });
+  }
+);
+
+// Cycle Tracking
+server.tool(
+  "get_cycle_tracking",
+  "Get menstrual cycle tracking data for a specified date range from Apple Health",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+  },
+  async ({ start, end }) => {
+    return sendRequest("cycle_tracking", { start, end });
+  }
+);
+
+// ECG
+server.tool(
+  "get_ecg",
+  "Get ECG (electrocardiogram) data for a specified date range from Apple Health",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+  },
+  async ({ start, end }) => {
+    return sendRequest("ecg", { start, end });
+  }
+);
+
+// Heart Notifications
+server.tool(
+  "get_heart_notifications",
+  "Get heart notification events (irregular rhythm, high/low heart rate alerts) for a specified date range from Apple Health",
+  {
+    start: z
+      .string()
+      .describe("Start timestamp (e.g., '2025-01-18 00:00:00 -0500')"),
+    end: z
+      .string()
+      .describe("End timestamp (e.g., '2025-01-18 23:59:59 -0500')"),
+  },
+  async ({ start, end }) => {
+    return sendRequest("heart_notifications", { start, end });
+  }
+);
+
 async function healthCheck(
   host: string,
   port: number,
   timeout: number = 5000
 ): Promise<boolean> {
-  const net = await import("net");
-
   return new Promise((resolve) => {
     const client = new net.Socket();
     let hasResponded = false;
@@ -514,14 +335,13 @@ async function main() {
 
   if (!isHealthy) {
     console.error(
-      `Health check failed: Cannot connect to ${HAE_HOST}:${HAE_PORT}`
+      `Health check warning: Cannot connect to ${HAE_HOST}:${HAE_PORT}. Server will start anyway - ensure Health Auto Export iOS app is running with TCP server enabled.`
     );
-    process.exit(1);
+  } else {
+    console.error(
+      `Health check passed: Successfully connected to ${HAE_HOST}:${HAE_PORT}`
+    );
   }
-
-  console.error(
-    `Health check passed: Successfully connected to ${HAE_HOST}:${HAE_PORT}`
-  );
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
