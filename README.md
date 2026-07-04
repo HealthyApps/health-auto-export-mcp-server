@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/healthyapps-health-auto-export-mcp-server-badge.png)](https://mseep.ai/app/healthyapps-health-auto-export-mcp-server)
+
 # Health Auto Export
 
 This project provides examples of how to work with the TCP server in [Health Auto Export](https://apple.co/3iqbU2d) app for iPhone/iPad.
