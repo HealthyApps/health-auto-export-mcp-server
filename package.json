@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "test": "test",
+    "test": "npm run build && node --test test",
     "start": "node dist/server.js",
     "dev": "node --loader ts-node/esm src/server.ts",
     "build": "tsc && chmod 755 dist/server.js"

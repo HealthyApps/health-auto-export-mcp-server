@@ -1,7 +1,10 @@
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import * as dotenv from "dotenv";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  type ToolCallback,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import * as net from "net";
@@ -13,16 +16,57 @@ const HAE_HOST = process.env.HAE_HOST || "localhost";
 const HAE_PORT = parseInt(process.env.HAE_PORT || "9000");
 const DEFAULT_TIMEOUT = parseInt(process.env.HAE_TIMEOUT || "86400000");
 
+const textOutputSchema = {
+  text: z
+    .string()
+    .describe("The same human-readable result returned in content"),
+};
+
+const readToolAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
 const server = new McpServer({
   name: "Health Auto Export",
   version: "1.0.0",
 });
 
+function registerReadTool<InputSchema extends z.ZodRawShape>(
+  name: string,
+  description: string,
+  inputSchema: InputSchema,
+  callback: ToolCallback<InputSchema>
+) {
+  server.registerTool(
+    name,
+    {
+      description,
+      inputSchema,
+      outputSchema: textOutputSchema,
+      annotations: readToolAnnotations,
+    },
+    callback
+  );
+}
+
+function textResult(text: string) {
+  return {
+    content: [{ type: "text" as const, text }],
+    structuredContent: { text },
+  };
+}
+
 // Helper function to send JSON-RPC request to Health Auto Export iOS app
 async function sendRequest(
   toolName: string,
   args: Record<string, unknown>
-): Promise<{ content: Array<{ type: "text"; text: string }> }> {
+): Promise<{
+  content: Array<{ type: "text"; text: string }>;
+  structuredContent: { text: string };
+}> {
   const requestId = Math.floor(Math.random() * 1000);
   const jsonrpcRequest = {
     jsonrpc: "2.0",
@@ -57,20 +101,12 @@ async function sendRequest(
         if (responseData) {
           try {
             const parsedResponse = JSON.parse(responseData);
-            resolve({
-              content: [
-                { type: "text", text: JSON.stringify(parsedResponse, null, 2) },
-              ],
-            });
+            resolve(textResult(JSON.stringify(parsedResponse, null, 2)));
           } catch {
-            resolve({
-              content: [{ type: "text", text: responseData }],
-            });
+            resolve(textResult(responseData));
           }
         } else {
-          resolve({
-            content: [{ type: "text", text: "No response data received" }],
-          });
+          resolve(textResult("No response data received"));
         }
       }
     });
@@ -81,23 +117,16 @@ async function sendRequest(
         if (responseData) {
           try {
             const parsedResponse = JSON.parse(responseData);
-            resolve({
-              content: [
-                { type: "text", text: JSON.stringify(parsedResponse, null, 2) },
-              ],
-            });
+            resolve(textResult(JSON.stringify(parsedResponse, null, 2)));
           } catch {
-            resolve({ content: [{ type: "text", text: responseData }] });
+            resolve(textResult(responseData));
           }
         } else {
-          resolve({
-            content: [
-              {
-                type: "text",
-                text: `Failed to connect to Health Auto Export at ${HAE_HOST}:${HAE_PORT}: ${error.message}`,
-              },
-            ],
-          });
+          resolve(
+            textResult(
+              `Failed to connect to Health Auto Export at ${HAE_HOST}:${HAE_PORT}: ${error.message}`
+            )
+          );
         }
       }
     });
@@ -106,35 +135,25 @@ async function sendRequest(
       if (!hasResponded) {
         hasResponded = true;
         client.destroy();
-        resolve({
-          content: [
-            {
-              type: "text",
-              text: `Request to Health Auto Export timed out after ${DEFAULT_TIMEOUT}ms`,
-            },
-          ],
-        });
+        resolve(
+          textResult(
+            `Request to Health Auto Export timed out after ${DEFAULT_TIMEOUT}ms`
+          )
+        );
       }
     });
 
     client.on("close", () => {
       if (!hasResponded) {
         hasResponded = true;
-        resolve({
-          content: [
-            {
-              type: "text",
-              text: `Connection to Health Auto Export closed unexpectedly`,
-            },
-          ],
-        });
+        resolve(textResult("Connection to Health Auto Export closed unexpectedly"));
       }
     });
   });
 }
 
 // Health Metrics
-server.tool(
+registerReadTool(
   "get_health_metrics",
   "Get health metrics data (heart rate, steps, sleep, blood glucose, etc.) for a specified date range from Apple Health",
   {
@@ -171,7 +190,7 @@ server.tool(
 );
 
 // Workouts
-server.tool(
+registerReadTool(
   "get_workouts",
   "Get workout data (exercise sessions) for a specified date range from Apple Health",
   {
@@ -206,7 +225,7 @@ server.tool(
 );
 
 // Symptoms
-server.tool(
+registerReadTool(
   "get_symptoms",
   "Get symptoms data for a specified date range from Apple Health",
   {
@@ -223,7 +242,7 @@ server.tool(
 );
 
 // State of Mind
-server.tool(
+registerReadTool(
   "get_state_of_mind",
   "Get state of mind (mood/emotion) data for a specified date range from Apple Health (iOS 18+)",
   {
@@ -240,7 +259,7 @@ server.tool(
 );
 
 // Medications
-server.tool(
+registerReadTool(
   "get_medications",
   "Get medications data for a specified date range from Apple Health (iOS 26+)",
   {
@@ -257,7 +276,7 @@ server.tool(
 );
 
 // Cycle Tracking
-server.tool(
+registerReadTool(
   "get_cycle_tracking",
   "Get menstrual cycle tracking data for a specified date range from Apple Health",
   {
@@ -274,7 +293,7 @@ server.tool(
 );
 
 // ECG
-server.tool(
+registerReadTool(
   "get_ecg",
   "Get ECG (electrocardiogram) data for a specified date range from Apple Health",
   {
@@ -291,7 +310,7 @@ server.tool(
 );
 
 // Heart Notifications
-server.tool(
+registerReadTool(
   "get_heart_notifications",
   "Get heart notification events (irregular rhythm, high/low heart rate alerts) for a specified date range from Apple Health",
   {
@@ -307,56 +326,7 @@ server.tool(
   }
 );
 
-async function healthCheck(
-  host: string,
-  port: number,
-  timeout: number = 5000
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    const client = new net.Socket();
-    let hasResponded = false;
-
-    client.setTimeout(timeout);
-
-    client.connect(port, host, () => {
-      if (!hasResponded) {
-        hasResponded = true;
-        client.end();
-        resolve(true);
-      }
-    });
-
-    client.on("error", () => {
-      if (!hasResponded) {
-        hasResponded = true;
-        resolve(false);
-      }
-    });
-
-    client.on("timeout", () => {
-      if (!hasResponded) {
-        hasResponded = true;
-        client.destroy();
-        resolve(false);
-      }
-    });
-  });
-}
-
 async function main() {
-  console.error(`Performing health check to ${HAE_HOST}:${HAE_PORT}...`);
-  const isHealthy = await healthCheck(HAE_HOST, HAE_PORT);
-
-  if (!isHealthy) {
-    console.error(
-      `Health check warning: Cannot connect to ${HAE_HOST}:${HAE_PORT}. Server will start anyway - ensure Health Auto Export iOS app is running with TCP server enabled.`
-    );
-  } else {
-    console.error(
-      `Health check passed: Successfully connected to ${HAE_HOST}:${HAE_PORT}`
-    );
-  }
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Health Auto Export MCP Server running on stdio");
